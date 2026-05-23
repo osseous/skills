@@ -10,10 +10,21 @@ A **skill** is any directory under [`skills/`](skills/) containing a `SKILL.md` 
 |---|---|
 | [`unreal-engine`](skills/unreal-engine/) | Author UE 5.x C++/Blueprint code without hallucinating API surface. Discovery + grep + WebFetch protocol before writing any signature. Covers pointers/GC, IWYU, Build.cs, replication, GAS, Lyra, Enhanced Input, UMG, animation. |
 | [`unreal-engine-angelscript`](skills/unreal-engine-angelscript/) | Author Hazelight AngelScript (`.as`) gameplay code on UE 5.x. Front-loads the 10 AS-vs-C++ traps (no `#include`, no `GENERATED_BODY`, `default` keyword, RPCs reliable by default, no `UInterface`, etc.) and enforces verify-before-claim against `angelscript.hazelight.se/api`. |
-| [`read-ue-logs`](skills/read-ue-logs/) | Read and filter Unreal Engine log output from disk. Auto-detects the project, merges concurrent log files, default-windows to recent sessions. |
-| [`ue-angelscript-tests`](skills/ue-angelscript-tests/) | Author Hazelight AngelScript tests (`Test_*` / `IntegrationTest_*`) for UE. Covers the three test kinds, the run loop, and how to verify results. |
+| [`read-ue-logs`](skills/read-ue-logs/) | Read and filter Unreal Engine log output from disk. Auto-detects the project, merges concurrent log files, default-windows to recent sessions. The deep reader behind `mcp-unreal`'s `get_test_log`. |
+| [`ue-angelscript-tests`](skills/ue-angelscript-tests/) | Author Hazelight AngelScript tests (`Test_*` / `IntegrationTest_*`) for UE. Covers the three test kinds, **running them through the `mcp-unreal` MCP server** (`list_tests` / `run_tests` / `run_visual_tests` / `get_test_log`), and how to verify results. |
 
 **Per-project pick:** on any UE 5.x project, install **one** of `unreal-engine` or `unreal-engine-angelscript` (depending on whether the project uses the Hazelight fork). Pair with `read-ue-logs` always, and with `ue-angelscript-tests` if you're in an AngelScript project.
+
+## Companion: the `mcp-unreal` MCP server
+
+The two testing skills above are designed to pair with [**`remiphilippe/mcp-unreal`**](https://github.com/remiphilippe/mcp-unreal) — a Go MCP server that gives an agent first-class control over a UE 5.x editor and headless toolchain. It is the **preferred way to run tests**: rather than hand-typing `UnrealEditor-Cmd … Automation RunTests`, the agent calls `list_tests`, `run_tests` (headless `-nullrhi`), `run_visual_tests` (GPU), and `get_test_log`. It also exposes `build_project` / `cook_project` and live editor control via the built-in Remote Control API (`:30010`) and the MCPUnreal editor plugin (`:8090`).
+
+| Skill | Pairs with mcp-unreal |
+| --- | --- |
+| `ue-angelscript-tests` | discover + run + read AngelScript tests via `list_tests`/`run_tests`/`run_visual_tests`/`get_test_log` |
+| `read-ue-logs` | the deep, multi-instance log reader for anything `get_test_log` doesn't surface |
+
+**Wiring it up** (per project): build/obtain the `mcp-unreal` binary, register it in the project's `.mcp.json` (with `MCP_UNREAL_PROJECT` and `UE_EDITOR_PATH`), enable the engine's Remote Control API plugin, and drop the `MCPUnreal` editor plugin into `Plugins/`. The skills then route their "run" and "read" steps through it. The skills still work without it — they fall back to the Session Frontend / `Automation RunTests` CLI — but a project that mandates the MCP path (in its `CLAUDE.md`) should keep all test execution on `mcp-unreal`.
 
 ## Install
 

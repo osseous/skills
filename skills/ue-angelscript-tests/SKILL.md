@@ -1,6 +1,6 @@
 ---
 name: ue-angelscript-tests
-description: Author Unreal Engine AngelScript tests using the Hazelight FUnitTest / FIntegrationTest framework. Use when adding regression coverage for `.as` gameplay code, scaffolding a new Test_* function, deciding between a unit test and an integration test (which requires a /Content/Testing/*.umap), or wiring a script test into the Session Frontend or `Automation RunTests` CLI. Tests are plain prefixed functions (no UCLASS, no macros) discovered automatically by the AngelScript plugin on hot reload.
+description: Author Unreal Engine AngelScript tests using the Hazelight FUnitTest / FIntegrationTest framework. Use when adding regression coverage for `.as` gameplay code, scaffolding a new Test_* function, deciding between a unit test and an integration test (which requires a /Content/Testing/*.umap), or running a script test — through the mcp-unreal MCP server (preferred), the Session Frontend, or the `Automation RunTests` CLI. Tests are plain prefixed functions (no UCLASS, no macros) discovered automatically by the AngelScript plugin on hot reload.
 ---
 
 # ue-angelscript-tests
@@ -34,9 +34,20 @@ Save the file → the AngelScript plugin hot-reloads → the test appears in `An
 
 ## Running tests
 
-**Editor:** `Window > Test Automation`, expand `Angelscript.UnitTests` (or `.IntegrationTests`), select your test, click `Start Tests`.
+**Preferred — through MCP.** If the project exposes the [`mcp-unreal`](https://github.com/remiphilippe/mcp-unreal) MCP server (a Go server that drives headless `UnrealEditor-Cmd` plus the editor's Remote Control API and the MCPUnreal plugin), run tests through its tools — never by hand-typing a command line:
 
-**CLI:** from the project root,
+| Tool | Use |
+| --- | --- |
+| `list_tests` | confirm your test registered (catches a missed hot reload) |
+| `run_tests` | headless run (`-nullrhi`); the default for `Test_*` unit tests |
+| `run_visual_tests` | GPU run; use when a test needs the RHI, a render target, or PIE |
+| `get_test_log` | read pass/fail and assertion detail (first read — see Verifying results) |
+
+Filter to a group or a single test by name, e.g. `Angelscript.UnitTests` or `Angelscript.UnitTests.AddReturnsSum`. Some projects' conventions (see their `CLAUDE.md`) make this MCP path **mandatory** and forbid the hand-typed CLI.
+
+**Editor (interactive):** `Window > Test Automation`, expand `Angelscript.UnitTests` (or `.IntegrationTests`), select your test, click `Start Tests`.
+
+**CLI (fallback when no MCP server is wired up):** from the project root,
 
 ```
 UnrealEditor-Cmd.exe <YourProject>.uproject -ExecCmds="Automation RunTests Angelscript.UnitTests; Quit" -unattended -nopause
@@ -46,7 +57,7 @@ Filter to a single test by name: `Automation RunTests Angelscript.UnitTests.AddR
 
 ## Verifying results
 
-After a run — editor or CLI — read the log to confirm pass/fail and see assertion details. Use the sibling skill [`read-ue-logs`](../read-ue-logs/) (loaded as `read-ue-logs` once linked); do not invent another log reader.
+After a run, confirm pass/fail and see assertion details. If you ran via MCP, **`get_test_log` is the first read**. For deep forensics — merging the editor and standalone-client logs of a multi-instance run, or grepping across categories — use the sibling skill [`read-ue-logs`](../read-ue-logs/) (loaded as `read-ue-logs` once linked); do not invent another log reader.
 
 ```
 powershell -NoProfile -File .claude/skills/read-ue-logs/scripts/read-logs.ps1 -Category LogAutomationController -Tail 100
