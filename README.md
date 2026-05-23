@@ -8,8 +8,12 @@ A **skill** is any directory under [`skills/`](skills/) containing a `SKILL.md` 
 
 | Skill | Purpose |
 |---|---|
+| [`unreal-engine`](skills/unreal-engine/) | Author UE 5.x C++/Blueprint code without hallucinating API surface. Discovery + grep + WebFetch protocol before writing any signature. Covers pointers/GC, IWYU, Build.cs, replication, GAS, Lyra, Enhanced Input, UMG, animation. |
+| [`unreal-engine-angelscript`](skills/unreal-engine-angelscript/) | Author Hazelight AngelScript (`.as`) gameplay code on UE 5.x. Front-loads the 10 AS-vs-C++ traps (no `#include`, no `GENERATED_BODY`, `default` keyword, RPCs reliable by default, no `UInterface`, etc.) and enforces verify-before-claim against `angelscript.hazelight.se/api`. |
 | [`read-ue-logs`](skills/read-ue-logs/) | Read and filter Unreal Engine log output from disk. Auto-detects the project, merges concurrent log files, default-windows to recent sessions. |
 | [`ue-angelscript-tests`](skills/ue-angelscript-tests/) | Author Hazelight AngelScript tests (`Test_*` / `IntegrationTest_*`) for UE. Covers the three test kinds, the run loop, and how to verify results. |
+
+**Per-project pick:** on any UE 5.x project, install **one** of `unreal-engine` or `unreal-engine-angelscript` (depending on whether the project uses the Hazelight fork). Pair with `read-ue-logs` always, and with `ue-angelscript-tests` if you're in an AngelScript project.
 
 ## Install
 
@@ -49,10 +53,20 @@ skills/                          # this repo
 │   ├── list-skills.sh           # prints every skills/**/SKILL.md path
 │   └── link-skills.sh           # symlinks each skill into ~/.claude/skills/
 └── skills/                      # all skills live here
-    ├── read-ue-logs/
-    │   ├── SKILL.md             # frontmatter + agent-facing quick start
+    ├── unreal-engine/
+    │   ├── SKILL.md             # frontmatter + agent entry point
     │   ├── README.md            # human-facing docs
-    │   └── scripts/             # optional deterministic helpers
+    │   ├── references/          # spillover: cpp-style, replication, gas, lyra, ...
+    │   └── scripts/             # detect-engine.ps1, find-uclass.ps1, open-epic-docs.ps1
+    ├── unreal-engine-angelscript/
+    │   ├── SKILL.md
+    │   ├── README.md
+    │   ├── references/          # cpp-differences, replication, mixins, footguns, ...
+    │   └── scripts/             # detect-angelscript.ps1, grep-binding.ps1, open-as-docs.ps1
+    ├── read-ue-logs/
+    │   ├── SKILL.md
+    │   ├── README.md
+    │   └── scripts/             # read-logs.ps1
     └── ue-angelscript-tests/
         ├── SKILL.md
         ├── REFERENCE.md         # full API surface
