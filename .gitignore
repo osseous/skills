@@ -1,0 +1,10 @@
+# OS junk
+Thumbs.db
+.DS_Store
+
+# Editor junk
+.vscode/
+.idea/
+
+# Defense in depth — no log artifacts checked in
+*.log
