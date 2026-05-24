@@ -1,6 +1,6 @@
 ---
 name: ue-angelscript-tests
-description: Author Unreal Engine AngelScript tests using the Hazelight FUnitTest / FIntegrationTest framework. Use when adding regression coverage for `.as` gameplay code, scaffolding a new Test_* function, deciding between a unit test and an integration test (which requires a /Content/Testing/*.umap), or running a script test — through the mcp-unreal MCP server (preferred), the Session Frontend, or the `Automation RunTests` CLI. Tests are plain prefixed functions (no UCLASS, no macros) discovered automatically by the AngelScript plugin on hot reload.
+description: Author Unreal Engine AngelScript tests using the Hazelight FUnitTest / FIntegrationTest framework. Use when adding regression coverage for `.as` gameplay code, scaffolding a new Test_* function, deciding between a unit test and an integration test (which requires a /Content/Testing/*.umap) — or deciding whether a test even belongs in AngelScript at all vs C++ automation tests / specs / functional tests / Gauntlet (cooked builds), and what EAutomationTestFlags or latent (multi-frame) commands a case needs. Also covers running a script test through an MCP test server (preferred), the Session Frontend, or the `Automation RunTests` CLI. Tests are plain prefixed functions (no UCLASS, no macros) discovered automatically by the AngelScript plugin on hot reload.
 ---
 
 # ue-angelscript-tests
@@ -12,10 +12,30 @@ Hazelight AngelScript tests are **plain functions discovered by name prefix** �
 | Prefix                      | Parameter                | Map required                        | Discovery group                   |
 | --------------------------- | ------------------------ | ----------------------------------- | --------------------------------- |
 | `Test_*`                    | `FUnitTest& T`           | no                                  | `Angelscript.UnitTests.*`         |
-| `IntegrationTest_*`         | `FIntegrationTest& T`    | yes — `/Content/Testing/<Name>.umap` | `Angelscript.IntegrationTests.*` |
+| `IntegrationTest_*`         | `FIntegrationTest& T`    | yes — `/Content/Testing/IntegrationTest_<Name>.umap` | `Angelscript.IntegrationTests.*` |
 | `ComplexIntegrationTest_*`  | `FIntegrationTest& T` + companion `_GetTests()` | yes | `Angelscript.IntegrationTests.*` |
 
-**Default to `Test_*`** unless the behavior genuinely needs a live world. Integration tests require a hand-authored `.umap` in `/Content/Testing/` — most agents cannot create one and should not attempt it.
+**Default to `Test_*`** unless the behavior genuinely needs a live world. Integration tests require a hand-authored `.umap` whose name **matches the full function name** (`IntegrationTest_Foo` → `/Content/Testing/IntegrationTest_Foo.umap`), or an override `FString IntegrationTest_Foo_GetMapName()` returning a map path — most agents cannot create a map and should not attempt it.
+
+## Capability boundaries — what AngelScript can and cannot test
+
+AngelScript reaches **only** the four AngelScript rows below. The rest are C++- or cooked-build-only; don't try to author them in `.as`.
+
+| Mechanism | Language | World/map | Build | Reach from AngelScript |
+| --- | --- | --- | --- | --- |
+| `Test_*` (`FUnitTest`) | AngelScript | none | editor `-nullrhi` | ✅ default |
+| `IntegrationTest_*` (`FIntegrationTest`) | AngelScript | yes | editor (often GPU) | ✅ when a world is required |
+| `ComplexIntegrationTest_*` + `_GetTests()` | AngelScript | yes | editor | ✅ parameterized over one map |
+| Diagnostic actor (`RunDiagnostics()`) | AngelScript | full PIE | editor | ✅ manual / human-verified |
+| `IMPLEMENT_SIMPLE_/COMPLEX_AUTOMATION_TEST` | **C++ only** | optional | editor | ❌ |
+| Automation Spec — `BEGIN_DEFINE_SPEC`/`Describe`/`It` | **C++ only** | optional | editor | ❌ |
+| `AFunctionalTest` actor in a map | BP / C++ (AS can subclass) | yes | editor | ⚠️ possible but `IntegrationTest_*` is cheaper |
+| **Gauntlet** (controller + Python) | C++ + Python | full game | **cooked/staged ONLY** | ❌ not in-editor, not via the test MCP |
+
+- **C++-only macros do not exist in `.as`**: `IMPLEMENT_*_AUTOMATION_TEST`, `BEGIN_DEFINE_SPEC`, `DEFINE_LATENT_AUTOMATION_COMMAND_*`. If the code under test is pure C++ with no AngelScript binding, write a C++ automation test — outside this skill's scope.
+- **`EAutomationTestFlags` is a C++ concern only.** A C++ test must OR exactly one context (`EditorContext`/`ClientContext`/`ServerContext`/`CommandletContext`, or `ApplicationContextMask`) with exactly one filter (`Smoke`/`Engine`/`Product`/`Perf`/`Stress`/`Negative`Filter); wrong count → "must specify exactly one filter" and the test silently won't run. AngelScript test functions take **no flags** — the plugin assigns them.
+- **Gauntlet needs a cooked/staged build** and runs the full game on PC/console/device; it cannot run in-editor or through a headless test MCP. Use it for boot/smoke, perf, and platform coverage, not for logic regressions.
+- **Hot-reload edge:** new `Test_*` functions appear on AngelScript hot reload; new **C++** tests need an **editor restart** ("Refresh Tests" won't find them).
 
 ## Quick start (unit test)
 
@@ -80,3 +100,5 @@ The hierarchy: `Test_*` first, `IntegrationTest_*` if a world is required, diagn
 - [`EXAMPLES.md`](EXAMPLES.md) — full file examples of each test kind, copy-pasteable.
 - Hazelight docs: https://angelscript.hazelight.se/scripting/script-tests/
 - Epic Automation Test Framework: https://dev.epicgames.com/documentation/en-us/unreal-engine/automation-test-framework-in-unreal-engine
+- Complex / latent functional tests (C++): https://unreal-garden.com/tutorials/complex-functional-tests/
+- Unit & integration testing overview (specs, flags, cooked vs editor): https://community.gamedev.tv/t/unit-and-integration-testing-in-unreal-engine/184388

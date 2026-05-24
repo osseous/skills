@@ -58,24 +58,44 @@ powershell -NoProfile -File .claude/skills/read-ue-logs/scripts/read-logs.ps1 -C
 ## 2. Integration test — `IntegrationTest_*` (outline)
 
 File: `Script/Tests/ActorSpawn_Test.as`
-**Companion map required:** `/Content/Testing/ActorSpawnsAndTicks.umap` (hand-authored; an agent cannot create this — leave a TODO for a human).
+**Companion map required:** `/Content/Testing/IntegrationTest_ActorSpawnsAndTicks.umap` — the map name matches the **full function name** (hand-authored; an agent cannot create this — leave a TODO for a human). Override the default with `FString IntegrationTest_ActorSpawnsAndTicks_GetMapName()` to point at a shared map.
+
+The test **body runs before the map loads and before frame 1** — it only enqueues latent commands. Multi-frame waits/asserts go in a `ULatentAutomationCommand` subclass (`Update()` returns `true` when done), *not* in a lambda — AngelScript has no `FFunctionLatentCommand` lambda form.
 
 ```angelscript
 // Discovered as Angelscript.IntegrationTests.ActorSpawnsAndTicks.
-// Requires /Content/Testing/ActorSpawnsAndTicks.umap to be loaded by the framework.
+// Requires /Content/Testing/IntegrationTest_ActorSpawnsAndTicks.umap.
+
+// A latent command: ticked every frame until Update() returns true.
+class UAssertActorBegunPlay : ULatentAutomationCommand
+{
+    FIntegrationTest Test;
+    AActor Actor;
+
+    UFUNCTION(BlueprintOverride)
+    bool Update()
+    {
+        if (!Actor.HasActorBegunPlay())
+            return false;   // not ready yet — tick again next frame
+
+        Test.AssertTrue(Actor.HasActorBegunPlay());
+        Test.AssertEquals(Actor.GetActorLocation().Z, 100.0);
+        return true;        // command complete
+    }
+
+    UFUNCTION(BlueprintOverride)
+    FString Describe() const { return "Assert spawned actor has begun play"; }
+}
 
 void IntegrationTest_ActorSpawnsAndTicks(FIntegrationTest& T)
 {
-    // Spawn an actor this tick.
     AActor SpawnedActor = SpawnActor(AActor::StaticClass(), FVector(0, 0, 100));
     T.AssertNotNull(SpawnedActor);
 
-    // Assert on a later tick after BeginPlay has run.
-    T.AddLatentAutomationCommand(FFunctionLatentCommand(() => {
-        T.AssertTrue(SpawnedActor.HasActorBegunPlay());
-        T.AssertEquals(SpawnedActor.GetActorLocation().Z, 100.0);
-        return true;  // command complete
-    }));
+    UAssertActorBegunPlay Cmd = UAssertActorBegunPlay();
+    Cmd.Test = T;
+    Cmd.Actor = SpawnedActor;
+    T.AddLatentAutomationCommand(Cmd);
 }
 ```
 
