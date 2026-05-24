@@ -15,7 +15,7 @@ powershell -NoProfile -File .claude/skills/read-ue-logs/scripts/read-logs.ps1 -T
 
 By default this scans `Saved/Logs/<Project>.log` plus any `Saved/Logs/<Project>_N.log` modified in the last 10 minutes, merges them by timestamp, and prints the last 50 lines. The script auto-locates the project root and project name from the nearest `*.uproject`, so the working directory does not need to be the repo root. Use `pwsh -File ...` instead of `powershell -File ...` if PowerShell 7+ is installed (both editions are supported).
 
-> **Running UE automation tests?** Run them through the [`mcp-unreal`](https://github.com/remiphilippe/mcp-unreal) MCP server (`run_tests` / `run_visual_tests`) and take the first read of the result from its `get_test_log`. Reach for *this* skill when one log isn't enough — merging concurrent editor + standalone-client logs into one timeline, filtering by category/verbosity/source, or grepping across a whole session.
+> **Running UE automation tests?** Run them through a test MCP server — [`osseous/ue-headless-mcp`](https://github.com/osseous/ue-headless-mcp) (preferred) or [`remiphilippe/mcp-unreal`](https://github.com/remiphilippe/mcp-unreal) — (`run_tests` / `run_visual_tests`) and take the first read of the result from its `get_test_log`. Reach for *this* skill when one log isn't enough — merging concurrent editor + standalone-client logs into one timeline, filtering by category/verbosity/source, or grepping across a whole session.
 
 ## Workflows
 

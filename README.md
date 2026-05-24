@@ -10,21 +10,33 @@ A **skill** is any directory under [`skills/`](skills/) containing a `SKILL.md` 
 |---|---|
 | [`unreal-engine`](skills/unreal-engine/) | Author UE 5.x C++/Blueprint code without hallucinating API surface. Discovery + grep + WebFetch protocol before writing any signature. Covers pointers/GC, IWYU, Build.cs, replication, GAS, Lyra, Enhanced Input, UMG, animation. |
 | [`unreal-engine-angelscript`](skills/unreal-engine-angelscript/) | Author Hazelight AngelScript (`.as`) gameplay code on UE 5.x. Front-loads the 10 AS-vs-C++ traps (no `#include`, no `GENERATED_BODY`, `default` keyword, RPCs reliable by default, no `UInterface`, etc.) and enforces verify-before-claim against `angelscript.hazelight.se/api`. |
-| [`read-ue-logs`](skills/read-ue-logs/) | Read and filter Unreal Engine log output from disk. Auto-detects the project, merges concurrent log files, default-windows to recent sessions. The deep reader behind `mcp-unreal`'s `get_test_log`. |
-| [`ue-angelscript-tests`](skills/ue-angelscript-tests/) | Author Hazelight AngelScript tests (`Test_*` / `IntegrationTest_*`) for UE. Covers the three test kinds, **running them through the `mcp-unreal` MCP server** (`list_tests` / `run_tests` / `run_visual_tests` / `get_test_log`), and how to verify results. |
+| [`read-ue-logs`](skills/read-ue-logs/) | Read and filter Unreal Engine log output from disk. Auto-detects the project, merges concurrent log files, default-windows to recent sessions. The deep reader behind a test MCP server's `get_test_log`. |
+| [`ue-angelscript-tests`](skills/ue-angelscript-tests/) | Author Hazelight AngelScript tests (`Test_*` / `IntegrationTest_*`) for UE. Covers the test kinds, the wider C++/Gauntlet/cooked-build boundary, **running them through a test MCP server** (`list_tests` / `run_tests` / `run_visual_tests` / `get_test_log`), and how to verify results. |
 
 **Per-project pick:** on any UE 5.x project, install **one** of `unreal-engine` or `unreal-engine-angelscript` (depending on whether the project uses the Hazelight fork). Pair with `read-ue-logs` always, and with `ue-angelscript-tests` if you're in an AngelScript project.
 
-## Companion: the `mcp-unreal` MCP server
+## Companion: a test MCP server
 
-The two testing skills above are designed to pair with [**`remiphilippe/mcp-unreal`**](https://github.com/remiphilippe/mcp-unreal) — a Go MCP server that gives an agent first-class control over a UE 5.x editor and headless toolchain. It is the **preferred way to run tests**: rather than hand-typing `UnrealEditor-Cmd … Automation RunTests`, the agent calls `list_tests`, `run_tests` (headless `-nullrhi`), `run_visual_tests` (GPU), and `get_test_log`. It also exposes `build_project` / `cook_project` and live editor control via the built-in Remote Control API (`:30010`) and the MCPUnreal editor plugin (`:8090`).
+The two testing skills above are designed to pair with an MCP server that runs the headless test loop for the agent, so it never hand-types `UnrealEditor-Cmd … Automation RunTests`. Two options:
 
-| Skill | Pairs with mcp-unreal |
+### Preferred: [`osseous/ue-headless-mcp`](https://github.com/osseous/ue-headless-mcp)
+
+Our own focused Go server, scoped to the headless test loop. It exposes exactly **five** tools — `status`, `list_tests`, `run_tests` (headless `-nullrhi`), `run_visual_tests` (GPU), `get_test_log` — and nothing else. Install with `go install github.com/osseous/ue-headless-mcp/cmd/ue-headless-mcp@latest` and register it in `.mcp.json` (env: `UE_EDITOR_PATH`, `MCP_UNREAL_PROJECT`, optional `UEHM_TIMEOUT_MS`).
+
+It exists because the editor process never reliably exits on Windows: it detects completion from the run log (the `**** TEST COMPLETE. EXIT CODE: N ****` marker, the AngelScript `Hot reload failed due to script compile errors` marker, and the optional `-ReportExportPath` `index.json`), sends child output to the null device to avoid inherited-pipe deadlock, and force-kills the whole process tree via a Windows Job Object the instant results exist. A clean run returns in ~20–45s; a **compile error returns in ~20s with the extracted AngelScript errors** instead of hanging. Each run writes a dedicated `Saved/Logs/McpTest_*.log` that `read-ue-logs` / `get_test_log` can read.
+
+It does **not** build, cook, or drive the live editor (`call_function`, `spawn_actor`, `pie_control`, `capture_viewport`, console commands). Build C++ via UBT (`Build.bat`) directly; add the server below side-by-side if you need live editor control.
+
+### Fuller (but hang-prone): [`remiphilippe/mcp-unreal`](https://github.com/remiphilippe/mcp-unreal)
+
+A broader Go server that also exposes `build_project` / `cook_project` and live editor control via the Remote Control API (`:30010`) and the MCPUnreal editor plugin (`:8090`). It tied "done" to the editor process exiting and never force-killed the Windows process tree, so a run whose tests finished in seconds blocked until the client timeout — which is why `ue-headless-mcp` replaced it for the test loop. Re-add it side-by-side only when you genuinely need its live-editor / build / cook tools.
+
+| Skill | Pairs with the test MCP server |
 | --- | --- |
 | `ue-angelscript-tests` | discover + run + read AngelScript tests via `list_tests`/`run_tests`/`run_visual_tests`/`get_test_log` |
 | `read-ue-logs` | the deep, multi-instance log reader for anything `get_test_log` doesn't surface |
 
-**Wiring it up** (per project): build/obtain the `mcp-unreal` binary, register it in the project's `.mcp.json` (with `MCP_UNREAL_PROJECT` and `UE_EDITOR_PATH`), enable the engine's Remote Control API plugin, and drop the `MCPUnreal` editor plugin into `Plugins/`. The skills then route their "run" and "read" steps through it. The skills still work without it — they fall back to the Session Frontend / `Automation RunTests` CLI — but a project that mandates the MCP path (in its `CLAUDE.md`) should keep all test execution on `mcp-unreal`.
+The skills still work without any MCP server — they fall back to the Session Frontend / `Automation RunTests` CLI — but a project that mandates the MCP path (in its `CLAUDE.md`) should keep all test execution on the server.
 
 ## Install
 

@@ -54,7 +54,7 @@ Save the file → the AngelScript plugin hot-reloads → the test appears in `An
 
 ## Running tests
 
-**Preferred — through MCP.** If the project exposes the [`mcp-unreal`](https://github.com/remiphilippe/mcp-unreal) MCP server (a Go server that drives headless `UnrealEditor-Cmd` plus the editor's Remote Control API and the MCPUnreal plugin), run tests through its tools — never by hand-typing a command line:
+**Preferred — through MCP.** If the project exposes a test MCP server — [`osseous/ue-headless-mcp`](https://github.com/osseous/ue-headless-mcp) (focused: just `status` + the four below; detects completion from run-log markers and force-kills the editor so a run never hangs) or the broader [`remiphilippe/mcp-unreal`](https://github.com/remiphilippe/mcp-unreal) — run tests through its tools, never by hand-typing a command line:
 
 | Tool | Use |
 | --- | --- |
