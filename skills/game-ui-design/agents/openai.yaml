@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game UI Design"
+  short_description: "Design game UI from references and shared components"
+  default_prompt: "Use $game-ui-design to research this game's UI context, establish reusable components, and design the requested screen."
